@@ -2,11 +2,11 @@
 
 This repo contains a set of usage examples for `klee-sys` low-level KLEE bindings. For more information on internal design behind see the [klee-sys](https://gitlab.henriktjader.com/pln/klee-sys) repo.
 
-See section `Cargo.toml` for detaled information on features introduced.
+See section `Cargo.toml` for detailed information on features introduced.
 
 ### General dependencies
 
-- llvm toolchain tested with (9.0.1)
+- LLVM toolchain tested with (9.0.1)
 - rustup tested with 1.40.0 (73528e339 2019-12-16)
 - klee tested with KLEE 2.1-pre (https://klee.github.io)
 
@@ -18,11 +18,11 @@ See section `Cargo.toml` for detaled information on features introduced.
 
 - `paths.rs`
 
-    This example showcase the different path termintaiton conditions possible and their effect to KLEE test case generation.
+    This example showcase the different path termination conditions possible and their effect to KLEE test case generation.
 
 - `assume_assert.rs`
 
-    This example showcase contract based verification, and the possibilies to extract proofs.
+    This example showcase contract based verification, and the possibilities to extract proofs.
 
 - `struct.rs`
 
