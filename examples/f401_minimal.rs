@@ -12,9 +12,22 @@ use cortex_m::asm;
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
 
+
+// Lab:
+// - Create a mutable "global" static array.
+// - Assign the values 0..10 to said array.
+// - Print said array on one line instead of a loop.
+static mut NUMBER_ARRAY: [u8; 10] = [0;10]; 
+
 #[entry]
 fn main() -> ! {
     hprintln!("Hello, world!").unwrap();
+    unsafe {
+        for x  in 0..10 as usize {
+            NUMBER_ARRAY[x] = x as u8;
+        }
+        hprintln!("{:?}",NUMBER_ARRAY);
+        }
 
     loop {
         asm::nop();
