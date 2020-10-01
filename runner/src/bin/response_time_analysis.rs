@@ -1,7 +1,49 @@
 use runner::common::*;
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::prelude::*;
+#[macro_use]
+extern crate markdown_gen;
+use markdown_gen::markdown::*;
+
 
 fn main() {
+
+    let file = File::create("test.md").unwrap();
+    let mut md = Markdown::new(file);
+    
+    md.write("Heading".heading(1)).unwrap();
+    md.write("Subheading".italic().heading(2)).unwrap();
+    
+    md.write("bold".bold()).unwrap();
+    
+    md.write("first paragraph").unwrap();
+    md.write(
+        "Links: ".paragraph()
+        .append("Rust".bold().link_to("https://rust-lang.org"))
+        .append(", ")
+        .append("Google".italic().link_to("https://google.com"))
+    ).unwrap();
+    
+    md.write(
+        List::new(true)
+            .title("numbered list")
+            .item("item 1")
+            .item("bold".bold())
+            .item(
+                    List::new(false)
+                        .title("nested bullet list")
+                        .item(
+                            "bold".bold()
+                                .paragraph().append(
+                                "italic".italic()
+                            )
+                        )
+               )
+    ).unwrap();
+    
+    md.write("quote".quote()).unwrap();
+
     // TODO find a more challenging set of tasks, and try to find some egde cases.
     let mut t1 = Task {
         id: "T1".to_string(),
@@ -103,7 +145,7 @@ fn blocking_time(task: &Task, tr: &TaskResources, ip: &IdPrio, list_of_tasks: &T
     let mut block_time = 0;
     let mut to_find = vec![];
     let mut task_prio = 0;
-    let mut resource_prio = 0;
+    let resource_prio = 0;
     let mut worst_case_execution_time_for_resource: Option<&u32> = Some(&0);
 
     match ip.get(&task.id) {
@@ -134,7 +176,7 @@ fn blocking_time(task: &Task, tr: &TaskResources, ip: &IdPrio, list_of_tasks: &T
                             Some(prio) => {
                                 let task_compare_prio = prio;
                                 let mut time_for_resource = vec![];
-                                if (task_compare_prio < &task_prio) {
+                                if task_compare_prio < &task_prio {
                                     for task in list_of_tasks {
                                         if &task.id == key {
                                             time_for_resource = find_resource(
@@ -166,8 +208,14 @@ fn blocking_time(task: &Task, tr: &TaskResources, ip: &IdPrio, list_of_tasks: &T
     return block_time;
 }
 
-fn preemption(task: &Task, tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Tasks) -> f64 {
-    let mut preemption = 0.0;
+fn preemption(
+    task: &Task,
+    tr: &TaskResources,
+    ip: &IdPrio,
+    list_of_tasks: &Tasks,
+    preemption_vec: &mut std::vec::Vec<f32>,
+    aprox: bool,
+) -> f32 {
     let mut task_prio = 0;
     let mut compare_task_prio = 0;
 
@@ -179,9 +227,6 @@ fn preemption(task: &Task, tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Task
     }
 
     for compare_task in list_of_tasks {
-        if task.id == compare_task.id {
-            break;
-        }
         match ip.get(&compare_task.id) {
             Some(prio) => {
                 compare_task_prio = *prio;
@@ -190,18 +235,65 @@ fn preemption(task: &Task, tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Task
         }
 
         if compare_task_prio > task_prio {
-            let deadline_interarrival_qouta =
-                *&compare_task.deadline as f64 / *&compare_task.inter_arrival as f64;
-            preemption = worst_case_execution_time(&compare_task) as f64
-                * deadline_interarrival_qouta.ceil()
-                + preemption as f64;
+            if !aprox {
+                let block_time = blocking_time(&task, &tr, &ip, &list_of_tasks);
+                let wcet = worst_case_execution_time(&task);
+                let mut preemption_result = preemption_rec(
+                    &task,
+                    &compare_task,
+                    block_time as f32,
+                    wcet as f32,
+                    (block_time as f32 + wcet as f32),
+                    0.0,
+                );
+                &preemption_vec.push(preemption_result);
+            } else if aprox {
+                let deadline_interarrival_qouta =
+                    *&compare_task.deadline as f32 / *&compare_task.inter_arrival as f32;
+                &preemption_vec.push(
+                    worst_case_execution_time(&compare_task) as f32
+                        * deadline_interarrival_qouta.ceil(),
+                );
+            }
         }
     }
-    return preemption;
+    let mut sum: f32 = preemption_vec.iter().sum();
+    preemption_vec.clear();
+
+    return sum;
 }
 
-fn response_time(preemption: f64, worst_case_execution_time: u32, blocking_time: u32) -> f64 {
-    return preemption + worst_case_execution_time as f64 + blocking_time as f64;
+fn response_time(preemption: f32, worst_case_execution_time: u32, blocking_time: u32) -> f32 {
+    return preemption + worst_case_execution_time as f32 + blocking_time as f32;
+}
+
+fn preemption_rec(
+    task: &Task,
+    compare_task: &Task,
+    blocking_time: f32,
+    wcet: f32,
+    mut current_respone_time: f32,
+    mut previous_respone_time: f32,
+) -> f32 {
+    if (current_respone_time - blocking_time - wcet) > *&task.deadline as f32 {
+        panic!();
+    } else if current_respone_time == previous_respone_time {
+        return current_respone_time;
+    }
+    previous_respone_time = current_respone_time;
+    current_respone_time = blocking_time
+        + wcet
+        + ((current_respone_time / *&compare_task.inter_arrival as f32)
+            * worst_case_execution_time(&compare_task) as f32)
+            .ceil();
+    return preemption_rec(
+        task,
+        compare_task,
+        blocking_time,
+        wcet,
+        current_respone_time,
+        previous_respone_time,
+    );
 }
 
 fn find_resource(
@@ -233,13 +325,27 @@ fn find_resource(
 // R(t) < D(t), for all tasks. (R(t) > D(t) implies a deadline miss.)
 
 fn check_scheduability(tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Tasks) -> bool {
+    let mut preemption_vector = vec![];
     for task in list_of_tasks {
+        // let r = response_time(
+        //     preemption(&task, &tr, &ip, &list_of_tasks, &mut preemption_vector),
+        //     worst_case_execution_time(&task),
+        //     blocking_time(&task, &tr, &ip, &list_of_tasks),
+        // );
+
         let r = response_time(
-            preemption(&task, &tr, &ip, &list_of_tasks),
+            preemption(
+                &task,
+                &tr,
+                &ip,
+                &list_of_tasks,
+                &mut preemption_vector,
+                false,
+            ),
             worst_case_execution_time(&task),
             blocking_time(&task, &tr, &ip, &list_of_tasks),
         );
-        if r < task.deadline as f64 {
+        if r < task.deadline as f32 {
             return false;
         }
     }
@@ -250,28 +356,41 @@ fn check_scheduability(tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Tasks) -
 }
 
 #[derive(Debug, Clone)]
-enum DetailedTask{
+enum DetailedTask {
     Task(Task),
-    R(f64),
+    R(f32),
     C(u32),
     B(u32),
-    I(f64),
+    I(f32),
 }
-fn gatherInfoFromTasks(tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Tasks) -> Vec <Vec<DetailedTask>> {
+fn gatherInfoFromTasks(
+    tr: &TaskResources,
+    ip: &IdPrio,
+    list_of_tasks: &Tasks,
+) -> Vec<Vec<DetailedTask>> {
     let mut task_vec = vec![];
     for task in list_of_tasks.clone() {
         let mut vec = vec![];
         let task_copy = task.clone();
+        let mut preemption_vec = vec![];
+        let aprox = false;
         vec = vec![
             DetailedTask::Task(task_copy),
             DetailedTask::R(response_time(
-                preemption(&task, &tr, &ip, &list_of_tasks),
+                preemption(&task, &tr, &ip, &list_of_tasks, &mut preemption_vec, aprox),
                 worst_case_execution_time(&task),
                 blocking_time(&task, &tr, &ip, &list_of_tasks),
             )),
             DetailedTask::C(worst_case_execution_time(&task)),
             DetailedTask::B(blocking_time(&task, &tr, &ip, &list_of_tasks)),
-            DetailedTask::I(preemption(&task, &tr, &ip, &list_of_tasks)),
+            DetailedTask::I(preemption(
+                &task,
+                &tr,
+                &ip,
+                &list_of_tasks,
+                &mut preemption_vec,
+                false,
+            )),
         ];
         task_vec.push(vec);
     }
