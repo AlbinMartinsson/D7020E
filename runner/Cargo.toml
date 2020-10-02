@@ -11,6 +11,8 @@ probe-rs = { version = "0.3.0" }
 ktest = { path = "../ktest", version = "0.1.0" }
 failure = "0.1.6"
 markdown-gen = "1.2.1"
+strum = "0.19"
+strum_macros = "0.19"
 
 [lib]
 name = "runner"

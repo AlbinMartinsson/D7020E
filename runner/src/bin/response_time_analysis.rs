@@ -2,48 +2,13 @@ use runner::common::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::prelude::*;
-#[macro_use]
-extern crate markdown_gen;
-use markdown_gen::markdown::*;
+use std::fmt::Display;
+use std::string::ToString;
+extern crate strum;
+use strum_macros::{Display, EnumIter};
 
 
 fn main() {
-
-    let file = File::create("test.md").unwrap();
-    let mut md = Markdown::new(file);
-    
-    md.write("Heading".heading(1)).unwrap();
-    md.write("Subheading".italic().heading(2)).unwrap();
-    
-    md.write("bold".bold()).unwrap();
-    
-    md.write("first paragraph").unwrap();
-    md.write(
-        "Links: ".paragraph()
-        .append("Rust".bold().link_to("https://rust-lang.org"))
-        .append(", ")
-        .append("Google".italic().link_to("https://google.com"))
-    ).unwrap();
-    
-    md.write(
-        List::new(true)
-            .title("numbered list")
-            .item("item 1")
-            .item("bold".bold())
-            .item(
-                    List::new(false)
-                        .title("nested bullet list")
-                        .item(
-                            "bold".bold()
-                                .paragraph().append(
-                                "italic".italic()
-                            )
-                        )
-               )
-    ).unwrap();
-    
-    md.write("quote".quote()).unwrap();
-
     // TODO find a more challenging set of tasks, and try to find some egde cases.
     let mut t1 = Task {
         id: "T1".to_string(),
@@ -115,7 +80,16 @@ fn main() {
         println!("The system is NOT scheduable");
     }
 
-    println!("{:?}", gatherInfoFromTasks(&tr, &ip, &tasks));
+    //println!("{:?}", gatherInfoFromTasks(&tr, &ip, &tasks));
+
+    let vector_of_detailed_tasks = gatherInfoFromTasks(&tr, &ip, &tasks);
+    for mut task in vector_of_detailed_tasks{
+        println!("{:?}", task.get(0).unwrap()); 
+        println!("{:?}", task.get(1).unwrap()); 
+        println!("{:?}", task.get(2).unwrap()); 
+        println!("{:?}", task.get(3).unwrap()); 
+        println!("{:?}", task.get(4).unwrap());   
+    }
 }
 
 //Returns the worst execution time, C(t)
@@ -355,7 +329,8 @@ fn check_scheduability(tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Tasks) -
     return false;
 }
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Display, Clone)]
 enum DetailedTask {
     Task(Task),
     R(f32),
