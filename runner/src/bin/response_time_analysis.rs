@@ -1,27 +1,75 @@
 use runner::common::*;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
 use std::fs::File;
 use std::io::prelude::*;
-use std::fmt::Display;
 use std::string::ToString;
 extern crate strum;
 use strum_macros::{Display, EnumIter};
 
-
 fn main() {
     // TODO find a more challenging set of tasks, and try to find some egde cases.
-    let mut t1 = Task {
-        id: "T1".to_string(),
-        prio: 1,
-        deadline: 100,
-        inter_arrival: 100,
-        trace: Trace {
-            id: "T1".to_string(),
-            start: 0,
-            end: 10,
-            inner: vec![],
-        },
-    };
+    // let mut t1 = Task {
+    //     id: "T1".to_string(),
+    //     prio: 1,
+    //     deadline: 100,
+    //     inter_arrival: 100,
+    //     trace: Trace {
+    //         id: "T1".to_string(),
+    //         start: 0,
+    //         end: 10,
+    //         inner: vec![],
+    //     },
+    // };
+
+    // let t2 = Task {
+    //     id: "T2".to_string(),
+    //     prio: 2,
+    //     deadline: 200,
+    //     inter_arrival: 200,
+    //     trace: Trace {
+    //         id: "T2".to_string(),
+    //         start: 0,
+    //         end: 30,
+    //         inner: vec![
+    //             Trace {
+    //                 id: "R1".to_string(),
+    //                 start: 10,
+    //                 end: 20,
+    //                 inner: vec![Trace {
+    //                     id: "R2".to_string(),
+    //                     start: 12,
+    //                     end: 16,
+    //                     inner: vec![],
+    //                 }],
+    //             },
+    //             Trace {
+    //                 id: "R1".to_string(),
+    //                 start: 22,
+    //                 end: 28,
+    //                 inner: vec![],
+    //             },
+    //         ],
+    //     },
+    // };
+
+    // let t3 = Task {
+    //     id: "T3".to_string(),
+    //     prio: 3,
+    //     deadline: 50,
+    //     inter_arrival: 50,
+    //     trace: Trace {
+    //         id: "T3".to_string(),
+    //         start: 0,
+    //         end: 30,
+    //         inner: vec![Trace {
+    //             id: "R2".to_string(),
+    //             start: 10,
+    //             end: 20,
+    //             inner: vec![],
+    //         }],
+    //     },
+    // };
 
     let t2 = Task {
         id: "T2".to_string(),
@@ -32,47 +80,37 @@ fn main() {
             id: "T2".to_string(),
             start: 0,
             end: 30,
-            inner: vec![
-                Trace {
-                    id: "R1".to_string(),
-                    start: 10,
-                    end: 20,
-                    inner: vec![Trace {
-                        id: "R2".to_string(),
-                        start: 12,
-                        end: 16,
-                        inner: vec![],
-                    }],
-                },
-                Trace {
-                    id: "R1".to_string(),
-                    start: 22,
-                    end: 28,
-                    inner: vec![],
-                },
-            ],
+            inner: vec![],
         },
     };
 
     let t3 = Task {
         id: "T3".to_string(),
         prio: 3,
-        deadline: 50,
-        inter_arrival: 50,
+        deadline: 10,
+        inter_arrival: 10,
         trace: Trace {
             id: "T3".to_string(),
             start: 0,
-            end: 30,
-            inner: vec![Trace {
-                id: "R2".to_string(),
-                start: 10,
-                end: 20,
-                inner: vec![],
-            }],
+            end: 3,
+            inner: vec![],
         },
     };
 
-    let tasks: Tasks = vec![t1, t2, t3];
+    let t4 = Task {
+        id: "T4".to_string(),
+        prio: 4,
+        deadline: 15,
+        inter_arrival: 15,
+        trace: Trace {
+            id: "T4".to_string(),
+            start: 0,
+            end: 2,
+            inner: vec![],
+        },
+    };
+
+    let tasks: Tasks = vec![t2, t3, t4];
     let (mut ip, mut tr) = pre_analysis(&tasks);
     if check_scheduability(&tr, &ip, &tasks) {
         println!("The system is scheduable");
@@ -83,12 +121,12 @@ fn main() {
     //println!("{:?}", gatherInfoFromTasks(&tr, &ip, &tasks));
 
     let vector_of_detailed_tasks = gatherInfoFromTasks(&tr, &ip, &tasks);
-    for mut task in vector_of_detailed_tasks{
-        println!("{:?}", task.get(0).unwrap()); 
-        println!("{:?}", task.get(1).unwrap()); 
-        println!("{:?}", task.get(2).unwrap()); 
-        println!("{:?}", task.get(3).unwrap()); 
-        println!("{:?}", task.get(4).unwrap());   
+    for mut task in vector_of_detailed_tasks {
+        println!("{:?}", task.get(0).unwrap());
+        println!("{:?}", task.get(1).unwrap());
+        println!("{:?}", task.get(2).unwrap());
+        println!("{:?}", task.get(3).unwrap());
+        println!("{:?}", task.get(4).unwrap());
     }
 }
 
@@ -251,8 +289,14 @@ fn preemption_rec(
 ) -> f32 {
     if (current_respone_time - blocking_time - wcet) > *&task.deadline as f32 {
         panic!();
-    } else if current_respone_time == previous_respone_time {
+    } else if current_respone_time == previous_respone_time
+        && current_respone_time == blocking_time + wcet
+    {
         return current_respone_time;
+    } else if current_respone_time == previous_respone_time
+        && current_respone_time > blocking_time + wcet
+    {
+        return current_respone_time - blocking_time - wcet;
     }
     previous_respone_time = current_respone_time;
     current_respone_time = blocking_time
@@ -301,12 +345,6 @@ fn find_resource(
 fn check_scheduability(tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Tasks) -> bool {
     let mut preemption_vector = vec![];
     for task in list_of_tasks {
-        // let r = response_time(
-        //     preemption(&task, &tr, &ip, &list_of_tasks, &mut preemption_vector),
-        //     worst_case_execution_time(&task),
-        //     blocking_time(&task, &tr, &ip, &list_of_tasks),
-        // );
-
         let r = response_time(
             preemption(
                 &task,
@@ -328,7 +366,6 @@ fn check_scheduability(tr: &TaskResources, ip: &IdPrio, list_of_tasks: &Tasks) -
     }
     return false;
 }
-
 
 #[derive(Debug, Display, Clone)]
 enum DetailedTask {
